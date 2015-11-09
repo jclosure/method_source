@@ -104,7 +104,12 @@ module MethodSource
                     owner
                   when Module
                     method_owner = owner
-                    Class.new { include(method_owner) }
+                    Class.new do
+                      include(method_owner)
+                      # def allocate
+                      #  self.new
+                      # end
+                    end
                   end
 
           # deal with immediate values
@@ -121,16 +126,15 @@ module MethodSource
             return nil.method(name).source_location
           end
 
-          begin
-            Object.instance_method(:method).bind(klass.allocate).call(name).source_location
-          rescue TypeError
-
-            # Assume we are dealing with a Singleton Class:
+          # test are we dealing with a Singleton Class
+          if Class === klass && !klass.ancestors.include?(klass)
             # 1. Get the instance object
             # 2. Forward the source_location lookup to the instance
             instance ||= ObjectSpace.each_object(owner).first
             Object.instance_method(:method).bind(instance).call(name).source_location
-          end
+          else
+            Object.instance_method(:method).bind(klass.allocate).call(name).source_location
+          end  
         end
       end
     end
